@@ -95,3 +95,30 @@ bash scripts/sync_with_main.sh origin main
 git add <исправленные_файлы>
 git rebase --continue
 ```
+
+
+## Перенос проекта в другой репозиторий
+
+Добавлен скрипт миграции:
+
+```bash
+bash scripts/migrate_to_new_repo.sh <NEW_REPO_URL> [TARGET_BRANCH] [REMOTE_NAME]
+```
+
+Пример:
+
+```bash
+bash scripts/migrate_to_new_repo.sh git@github.com:your-org/new-tgbot.git main new-origin
+```
+
+Что делает скрипт:
+
+1. Проверяет, что нет незакоммиченных изменений.
+2. Добавляет (или обновляет) remote с именем `new-origin` (или вашим именем).
+3. Пушит текущую ветку в целевую ветку нового репозитория и ставит upstream.
+
+После переноса можно сделать новый remote основным:
+
+```bash
+git remote rename new-origin origin
+```
