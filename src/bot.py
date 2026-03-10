@@ -339,5 +339,9 @@ async def run() -> None:
 if __name__ == "__main__":
     try:
         asyncio.run(run())
+    except RuntimeError as exc:
+        print(f"Ошибка конфигурации: {exc}")
     except TelegramNetworkError:
         print("Не удалось подключиться к Telegram API. Проверьте сеть и токен.")
+    except KeyboardInterrupt:
+        print("Бот остановлен пользователем")
