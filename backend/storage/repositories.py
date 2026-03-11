@@ -1,48 +1,93 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.db.models import Message, User
 from backend.models.schemas import MessageIn, MessageOut, UserIn, UserOut
 
 
-class InMemoryUserRepository:
-    def __init__(self) -> None:
-        self._users: dict[int, UserOut] = {}
-        self._counter = 1
+class UserRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
 
-    def upsert(self, payload: UserIn) -> UserOut:
+    async def upsert(self, payload: UserIn) -> UserOut:
         now = datetime.now(timezone.utc)
-        existing = next((u for u in self._users.values() if u.telegram_id == payload.telegram_id), None)
+        result = await self.session.execute(select(User).where(User.telegram_id == payload.telegram_id))
+        existing = result.scalar_one_or_none()
+
         if existing:
-            updated = UserOut(
-                **payload.model_dump(),
-                id=existing.id,
-                first_seen=existing.first_seen,
-                last_seen=now,
-            )
-            self._users[existing.id] = updated
-            return updated
+            existing.username = payload.username
+            existing.display_name = payload.display_name
+            existing.language = payload.language
+            existing.last_seen = now
+            await self.session.commit()
+            await self.session.refresh(existing)
+            return self._to_schema(existing)
 
-        created = UserOut(**payload.model_dump(), id=self._counter, first_seen=now, last_seen=now)
-        self._users[self._counter] = created
-        self._counter += 1
-        return created
+        user = User(
+            telegram_id=payload.telegram_id,
+            username=payload.username,
+            display_name=payload.display_name,
+            language=payload.language,
+            first_seen=now,
+            last_seen=now,
+        )
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return self._to_schema(user)
 
-    def get(self, user_id: int) -> UserOut | None:
-        return self._users.get(user_id)
+    async def get(self, user_id: int) -> UserOut | None:
+        user = await self.session.get(User, user_id)
+        return self._to_schema(user) if user else None
+
+    @staticmethod
+    def _to_schema(user: User) -> UserOut:
+        return UserOut(
+            id=user.id,
+            telegram_id=user.telegram_id,
+            username=user.username,
+            display_name=user.display_name,
+            language=user.language,
+            first_seen=user.first_seen,
+            last_seen=user.last_seen,
+        )
 
 
-class InMemoryMessageRepository:
-    def __init__(self) -> None:
-        self._messages: dict[int, MessageOut] = {}
-        self._counter = 1
+class MessageRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
 
-    def create(self, payload: MessageIn) -> MessageOut:
-        created = MessageOut(id=self._counter, **payload.model_dump())
-        self._messages[self._counter] = created
-        self._counter += 1
-        return created
+    async def create(self, payload: MessageIn) -> MessageOut:
+        message = Message(**payload.model_dump())
+        self.session.add(message)
+        await self.session.commit()
+        await self.session.refresh(message)
+        return self._to_schema(message)
 
-    def batch_create(self, payloads: list[MessageIn]) -> list[MessageOut]:
-        return [self.create(payload) for payload in payloads]
+    async def batch_create(self, payloads: list[MessageIn]) -> list[MessageOut]:
+        items = [Message(**payload.model_dump()) for payload in payloads]
+        self.session.add_all(items)
+        await self.session.commit()
+        for item in items:
+            await self.session.refresh(item)
+        return [self._to_schema(item) for item in items]
 
-    def get(self, message_id: int) -> MessageOut | None:
-        return self._messages.get(message_id)
+    async def get(self, message_id: int) -> MessageOut | None:
+        message = await self.session.get(Message, message_id)
+        return self._to_schema(message) if message else None
+
+    @staticmethod
+    def _to_schema(message: Message) -> MessageOut:
+        return MessageOut(
+            id=message.id,
+            message_id=message.message_id,
+            user_id=message.user_id,
+            chat_id=message.chat_id,
+            timestamp=message.timestamp,
+            text=message.text,
+            reply_to=message.reply_to,
+            username=message.username,
+            display_name=message.display_name,
+        )

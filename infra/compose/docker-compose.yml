@@ -3,6 +3,8 @@ services:
     build:
       context: ../..
       dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://scam:scam@postgres:5432/scam_detector
     ports:
       - "8000:8000"
     depends_on:

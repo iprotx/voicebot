@@ -2,13 +2,14 @@
 
 Included:
 - Message collection payload schema
-- Message/user ingestion API
+- Async message/user ingestion API
+- SQL-backed repositories (SQLite for local tests, PostgreSQL in compose)
 - Feature vectors
 - Embedding generation interface
 - Deterministic risk scoring
 
 Deferred:
-- Persistent DB repositories
 - Graph clustering jobs
 - Dashboard UI
 - Alerts channels integration
+- Background queue workers

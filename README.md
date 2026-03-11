@@ -5,12 +5,13 @@ Production-oriented modular platform for collecting Telegram messages, extractin
 ## MVP implemented
 
 - FastAPI ingestion API (`backend`)
-- PostgreSQL + Redis integration via Docker Compose
+- SQLAlchemy async repositories (`users`, `messages`) with DB auto-init on startup
+- PostgreSQL + Redis + Neo4j integration via Docker Compose
 - Feature extraction service for stylometry + behavior vectors
 - Embedding service wrapper (SentenceTransformers-ready with deterministic fallback)
 - Risk scoring service
 - Telethon userbot sender skeleton
-- Tests for extraction/risk/api health
+- Unit + API integration tests
 
 ## Run locally
 
@@ -18,4 +19,4 @@ Production-oriented modular platform for collecting Telegram messages, extractin
 docker compose -f infra/compose/docker-compose.yml up --build
 ```
 
-API: `http://localhost:8000/docs`
+API docs: `http://localhost:8000/docs`
