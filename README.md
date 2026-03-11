@@ -2,14 +2,14 @@
 
 Production-oriented modular platform for collecting Telegram messages, extracting behavioral/stylometric signals, and scoring multi-account scam risk.
 
-## MVP implemented
+## Current SaaS increment
 
 - FastAPI ingestion API (`backend`)
-- SQLAlchemy async repositories (`users`, `messages`) with DB auto-init on startup
+- Admin authentication (`/auth/register`, `/auth/login`) with JWT
+- Protected integrations management for `bot` and `userbot` connectors (`/integrations`)
+- SQLAlchemy async repositories with DB auto-init on startup
 - PostgreSQL + Redis + Neo4j integration via Docker Compose
-- Feature extraction service for stylometry + behavior vectors
-- Embedding service wrapper (SentenceTransformers-ready with deterministic fallback)
-- Risk scoring service
+- Feature extraction + embedding wrapper + risk scoring services
 - Telethon userbot sender skeleton
 - Unit + API integration tests
 

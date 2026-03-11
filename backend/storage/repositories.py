@@ -3,8 +3,29 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.db.models import Message, User
-from backend.models.schemas import MessageIn, MessageOut, UserIn, UserOut
+from backend.db.models import AdminUser, Integration, Message, User
+from backend.models.schemas import IntegrationIn, IntegrationOut, MessageIn, MessageOut, UserIn, UserOut
+
+
+class AdminRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create(self, email: str, password_hash: str) -> int:
+        admin = AdminUser(
+            email=email,
+            password_hash=password_hash,
+            created_at=datetime.now(timezone.utc),
+            is_active=True,
+        )
+        self.session.add(admin)
+        await self.session.commit()
+        await self.session.refresh(admin)
+        return admin.id
+
+    async def get_by_email(self, email: str) -> AdminUser | None:
+        result = await self.session.execute(select(AdminUser).where(AdminUser.email == email))
+        return result.scalar_one_or_none()
 
 
 class UserRepository:
@@ -90,4 +111,47 @@ class MessageRepository:
             reply_to=message.reply_to,
             username=message.username,
             display_name=message.display_name,
+        )
+
+
+class IntegrationRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create(self, payload: IntegrationIn) -> IntegrationOut:
+        obj = Integration(
+            **payload.model_dump(),
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        self.session.add(obj)
+        await self.session.commit()
+        await self.session.refresh(obj)
+        return self._to_schema(obj)
+
+    async def list_all(self) -> list[IntegrationOut]:
+        result = await self.session.execute(select(Integration).order_by(Integration.id.desc()))
+        return [self._to_schema(row) for row in result.scalars().all()]
+
+    async def set_active(self, integration_id: int, is_active: bool) -> IntegrationOut | None:
+        obj = await self.session.get(Integration, integration_id)
+        if not obj:
+            return None
+        obj.is_active = is_active
+        await self.session.commit()
+        await self.session.refresh(obj)
+        return self._to_schema(obj)
+
+    @staticmethod
+    def _to_schema(obj: Integration) -> IntegrationOut:
+        return IntegrationOut(
+            id=obj.id,
+            name=obj.name,
+            kind=obj.kind,
+            api_id=obj.api_id,
+            api_hash=obj.api_hash,
+            bot_token=obj.bot_token,
+            session_name=obj.session_name,
+            is_active=obj.is_active,
+            created_at=obj.created_at,
         )

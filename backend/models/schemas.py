@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserIn(BaseModel):
@@ -33,3 +34,33 @@ class MessageBatchIn(BaseModel):
 
 class MessageOut(MessageIn):
     id: int
+
+
+class AdminRegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class AdminLoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class IntegrationIn(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    kind: Literal["bot", "userbot"]
+    api_id: str | None = None
+    api_hash: str | None = None
+    bot_token: str | None = None
+    session_name: str | None = None
+
+
+class IntegrationOut(IntegrationIn):
+    id: int
+    is_active: bool
+    created_at: datetime
