@@ -13,7 +13,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.exceptions import TelegramNetworkError
 
 from config import load_settings
 from voicebox_client import VoiceProfile, VoiceboxClient
@@ -57,10 +56,6 @@ async def main_menu(message: Message, text: str = "Выберите действ
 def profile_line(profile: VoiceProfile) -> str:
     samples = str(profile.sample_count) if profile.sample_count is not None else "?"
     return f"• <b>{profile.name}</b> ({profile.language}) — samples: {samples}\n<code>{profile.id}</code>"
-
-
-def is_forwarded_message(message: Message) -> bool:
-    return bool(getattr(message, "forward_origin", None) or getattr(message, "forward_from", None))
 
 
 @router.message(CommandStart())
@@ -109,13 +104,7 @@ async def capture_profile_name(
 
 @router.callback_query(F.data == MENU_LIST)
 async def on_list_profiles(call: CallbackQuery, voicebox: VoiceboxClient) -> None:
-    try:
-        profiles = await voicebox.list_profiles()
-    except httpx.HTTPError:
-        await call.message.answer("Не удалось получить профили из Voicebox.")
-        await call.answer()
-        return
-
+    profiles = await voicebox.list_profiles()
     if not profiles:
         await call.message.answer("Пока нет профилей.")
     else:
@@ -125,13 +114,7 @@ async def on_list_profiles(call: CallbackQuery, voicebox: VoiceboxClient) -> Non
 
 @router.callback_query(F.data == MENU_SELECT)
 async def on_select_profile(call: CallbackQuery, voicebox: VoiceboxClient) -> None:
-    try:
-        profiles = await voicebox.list_profiles()
-    except httpx.HTTPError:
-        await call.message.answer("Не удалось получить профили из Voicebox.")
-        await call.answer()
-        return
-
+    profiles = await voicebox.list_profiles()
     if not profiles:
         await call.message.answer("Сначала создайте профиль.")
         await call.answer()
@@ -148,14 +131,7 @@ async def on_select_profile(call: CallbackQuery, voicebox: VoiceboxClient) -> No
 @router.callback_query(F.data.startswith("select:"))
 async def on_select_profile_item(call: CallbackQuery, voicebox: VoiceboxClient) -> None:
     profile_id = call.data.split(":", 1)[1]
-
-    try:
-        profiles = await voicebox.list_profiles()
-    except httpx.HTTPError:
-        await call.answer("Voicebox недоступен", show_alert=True)
-        return
-
-    profile = next((p for p in profiles if p.id == profile_id), None)
+    profile = next((p for p in await voicebox.list_profiles() if p.id == profile_id), None)
     if not profile:
         await call.answer("Профиль не найден", show_alert=True)
         return
@@ -169,13 +145,7 @@ async def on_select_profile_item(call: CallbackQuery, voicebox: VoiceboxClient) 
 
 @router.callback_query(F.data == MENU_DELETE)
 async def on_delete_menu(call: CallbackQuery, voicebox: VoiceboxClient) -> None:
-    try:
-        profiles = await voicebox.list_profiles()
-    except httpx.HTTPError:
-        await call.message.answer("Не удалось получить профили из Voicebox.")
-        await call.answer()
-        return
-
+    profiles = await voicebox.list_profiles()
     if not profiles:
         await call.message.answer("Удалять нечего.")
         await call.answer()
@@ -192,11 +162,7 @@ async def on_delete_menu(call: CallbackQuery, voicebox: VoiceboxClient) -> None:
 @router.callback_query(F.data.startswith("delete:"))
 async def on_delete_profile(call: CallbackQuery, voicebox: VoiceboxClient) -> None:
     profile_id = call.data.split(":", 1)[1]
-    try:
-        await voicebox.delete_profile(profile_id)
-    except httpx.HTTPError:
-        await call.answer("Ошибка удаления в Voicebox", show_alert=True)
-        return
+    await voicebox.delete_profile(profile_id)
 
     session = user_sessions.setdefault(call.from_user.id, Session())
     if session.selected_profile_id == profile_id:
@@ -233,19 +199,14 @@ async def on_generate_text(message: Message, state: FSMContext, voicebox: Voiceb
         return
 
     await message.answer("Генерирую... ⏳")
-    try:
-        generation = await voicebox.generate(text=text, profile_id=session.selected_profile_id, language=session.language)
-        audio_url = generation.get("audio_url")
-        if not audio_url:
-            await message.answer("Voicebox не вернул audio_url. Проверьте логи сервера.")
-            await state.clear()
-            return
-        audio = await voicebox.download_audio(audio_url)
-    except httpx.HTTPError:
-        await message.answer("Ошибка генерации в Voicebox. Проверьте доступность API и модель.")
+    generation = await voicebox.generate(text=text, profile_id=session.selected_profile_id, language=session.language)
+    audio_url = generation.get("audio_url")
+    if not audio_url:
+        await message.answer("Voicebox не вернул audio_url. Проверьте логи сервера.")
         await state.clear()
         return
 
+    audio = await voicebox.download_audio(audio_url)
     await message.answer_voice(BufferedInputFile(audio, filename="generation.ogg"))
     await state.clear()
 
@@ -256,23 +217,19 @@ async def _create_profile_from_forwarded_voice(
     bot: Bot,
     settings_language: str,
 ) -> bool:
-    if not message.voice or not is_forwarded_message(message):
+    if not message.voice or (not message.forward_from and not message.forward_origin):
         return False
 
     profile_name = f"forwarded_{message.from_user.id}_{message.message_id}"
-    try:
-        profile = await voicebox.create_profile(name=profile_name, language=settings_language)
+    profile = await voicebox.create_profile(name=profile_name, language=settings_language)
 
-        file = await bot.get_file(message.voice.file_id)
-        voice_file = await bot.download_file(file.file_path)
-        await voicebox.add_sample(
-            profile_id=profile.id,
-            filename=f"sample_{message.voice.file_unique_id}.ogg",
-            content=voice_file.read(),
-        )
-    except httpx.HTTPError:
-        await message.answer("Не удалось обработать пересланный voice в Voicebox.")
-        return True
+    file = await bot.get_file(message.voice.file_id)
+    voice_file = await bot.download_file(file.file_path)
+    await voicebox.add_sample(
+        profile_id=profile.id,
+        filename=f"sample_{message.voice.file_unique_id}.ogg",
+        content=voice_file.read(),
+    )
 
     session = user_sessions.setdefault(message.from_user.id, Session())
     session.selected_profile_id = profile.id
@@ -300,18 +257,13 @@ async def on_voice_message(
         await message.answer("Сначала создайте и выберите профиль (кнопки «➕» и «🎯»).")
         return
 
-    try:
-        file = await bot.get_file(message.voice.file_id)
-        voice_file = await bot.download_file(file.file_path)
-        await voicebox.add_sample(
-            profile_id=session.selected_profile_id,
-            filename=f"sample_{message.voice.file_unique_id}.ogg",
-            content=voice_file.read(),
-        )
-    except httpx.HTTPError:
-        await message.answer("Не удалось добавить сэмпл в Voicebox.")
-        return
-
+    file = await bot.get_file(message.voice.file_id)
+    voice_file = await bot.download_file(file.file_path)
+    await voicebox.add_sample(
+        profile_id=session.selected_profile_id,
+        filename=f"sample_{message.voice.file_unique_id}.ogg",
+        content=voice_file.read(),
+    )
     await message.answer("Сэмпл добавлен в активный профиль ✅")
 
 
@@ -337,11 +289,4 @@ async def run() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(run())
-    except RuntimeError as exc:
-        print(f"Ошибка конфигурации: {exc}")
-    except TelegramNetworkError:
-        print("Не удалось подключиться к Telegram API. Проверьте сеть и токен.")
-    except KeyboardInterrupt:
-        print("Бот остановлен пользователем")
+    asyncio.run(run())

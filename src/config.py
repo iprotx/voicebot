@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 import os
 
-from dotenv import load_dotenv
-
 
 @dataclass(frozen=True)
 class Settings:
@@ -13,7 +11,6 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    load_dotenv()
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is required")
