@@ -1,24 +1,48 @@
-# Telegram Scam Multi-Account Detector
+# Telegram Voicebox Bot
 
-Production-oriented modular platform for collecting Telegram messages, extracting behavioral/stylometric signals, and scoring multi-account scam risk.
+Телеграм-бот для управления Voicebox через кнопки:
 
-## Current SaaS increment
+- создание голосовых профилей;
+- автосоздание профиля из **пересланного** voice сообщения;
+- добавление voice-сэмплов в активный профиль;
+- выбор/просмотр/удаление профилей;
+- генерация речи и отправка результата в Telegram.
 
-- FastAPI ingestion API (`backend`)
-- Admin authentication (`/auth/register`, `/auth/login`) with JWT
-- Protected integrations management for `bot` and `userbot` connectors (`/integrations`)
-- SQLAlchemy async repositories with DB auto-init on startup
-- PostgreSQL + Redis + Neo4j integration via Docker Compose
-- Feature extraction + embedding wrapper + risk scoring services
-- Analysis endpoint `/analysis/similarity` for account similarity + risk evaluation
-- Risk scoring persistence + auto alerts (dashboard/telegram/email) for high-risk users
-- Telethon userbot sender skeleton
-- Unit + API integration tests
+## Требования
 
-## Run locally
+- Python 3.11+
+- Запущенный Voicebox API (по умолчанию `http://localhost:17493`)
+- Telegram bot token от `@BotFather`
+
+## Быстрый старт
 
 ```bash
-docker compose -f infra/compose/docker-compose.yml up --build
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-API docs: `http://localhost:8000/docs`
+Заполните `.env`, затем:
+
+```bash
+set -a; source .env; set +a
+python src/bot.py
+```
+
+## Как это работает
+
+1. Нажмите `➕ Создать профиль` и введите имя — бот создаст профиль в Voicebox.
+2. Отправьте голосовое сообщение (`voice`) — оно добавится как сэмпл в активный профиль.
+3. Можно переслать чужой voice: бот автоматически создаст новый профиль и добавит sample.
+4. Нажмите `🗣 Сгенерировать речь`, отправьте текст — бот вернет озвучку.
+
+## Поддерживаемые REST методы Voicebox
+
+- `GET /profiles`
+- `POST /profiles`
+- `DELETE /profiles/{id}`
+- `POST /profiles/{id}/samples`
+- `POST /generate`
+
+Если ваш сервер Voicebox работает на другом хосте/порту, измените `VOICEBOX_BASE_URL`.
