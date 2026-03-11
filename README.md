@@ -11,6 +11,7 @@ Production-oriented modular platform for collecting Telegram messages, extractin
 - PostgreSQL + Redis + Neo4j integration via Docker Compose
 - Feature extraction + embedding wrapper + risk scoring services
 - Analysis endpoint `/analysis/similarity` for account similarity + risk evaluation
+- Risk scoring persistence + auto alerts (dashboard/telegram/email) for high-risk users
 - Telethon userbot sender skeleton
 - Unit + API integration tests
 

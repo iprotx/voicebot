@@ -9,6 +9,7 @@
 - `backend/services/feature_service.py`: stylometry and temporal feature extraction.
 - `ml/feature_extractor/embedding_service.py`: text embeddings (SentenceTransformers + fallback).
 - `backend/services/risk_service.py`: weighted risk scoring.
+- `backend/api/routes/risk.py`: persistent risk scoring + alerts endpoints.
 
 ## Data flow
 
@@ -21,3 +22,8 @@ API `/analysis/similarity` -> FeatureExtractor -> style/activity cosine -> RiskS
 ## Control plane flow
 
 Admin -> `/auth/login` -> JWT -> `/integrations` CRUD-lite for bot/userbot connectors.
+
+
+## Risk + alerts flow
+
+Admin -> `/risk/score` -> RiskScore stored -> if score > 70 create alerts in channels dashboard/telegram/email.

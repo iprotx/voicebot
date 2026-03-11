@@ -56,3 +56,28 @@ class Integration(Base):
     session_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RiskScore(Base):
+    __tablename__ = "risk_scores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    style_similarity: Mapped[float] = mapped_column(nullable=False)
+    activity_overlap: Mapped[float] = mapped_column(nullable=False)
+    scam_pattern_score: Mapped[float] = mapped_column(nullable=False)
+    risk_score: Mapped[float] = mapped_column(nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    risk_score_id: Mapped[int] = mapped_column(Integer, ForeignKey("risk_scores.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)  # dashboard|telegram|email
+    status: Mapped[str] = mapped_column(String(32), default="new", nullable=False)
+    message: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

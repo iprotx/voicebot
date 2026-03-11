@@ -9,6 +9,8 @@ Included:
 - Embedding generation interface
 - Deterministic risk scoring
 - Analysis API for pairwise account similarity and risk
+- Persistent risk score history per user
+- Auto alert creation for high-risk detections
 
 Deferred:
 - Billing/pricing engine

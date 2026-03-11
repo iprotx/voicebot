@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.db.models import AdminUser, Integration, Message, User
-from backend.models.schemas import IntegrationIn, IntegrationOut, MessageIn, MessageOut, UserIn, UserOut
+from backend.db.models import AdminUser, Alert, Integration, Message, RiskScore, User
+from backend.models.schemas import AlertOut, IntegrationIn, IntegrationOut, MessageIn, MessageOut, RiskScoreCreateIn, RiskScoreOut, UserIn, UserOut
 
 
 class AdminRepository:
@@ -153,5 +153,84 @@ class IntegrationRepository:
             bot_token=obj.bot_token,
             session_name=obj.session_name,
             is_active=obj.is_active,
+            created_at=obj.created_at,
+        )
+
+
+
+class RiskScoreRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create(self, payload: RiskScoreCreateIn, computed_score: float, computed_level: str) -> RiskScoreOut:
+        obj = RiskScore(
+            user_id=payload.user_id,
+            style_similarity=payload.style_similarity,
+            activity_overlap=payload.activity_overlap,
+            scam_pattern_score=payload.scam_pattern_score,
+            risk_score=computed_score,
+            risk_level=computed_level,
+            created_at=datetime.now(timezone.utc),
+        )
+        self.session.add(obj)
+        await self.session.commit()
+        await self.session.refresh(obj)
+        return self._to_schema(obj)
+
+    async def list_by_user(self, user_id: int) -> list[RiskScoreOut]:
+        result = await self.session.execute(
+            select(RiskScore).where(RiskScore.user_id == user_id).order_by(RiskScore.id.desc())
+        )
+        return [self._to_schema(row) for row in result.scalars().all()]
+
+    @staticmethod
+    def _to_schema(obj: RiskScore) -> RiskScoreOut:
+        return RiskScoreOut(
+            id=obj.id,
+            user_id=obj.user_id,
+            style_similarity=obj.style_similarity,
+            activity_overlap=obj.activity_overlap,
+            scam_pattern_score=obj.scam_pattern_score,
+            risk_score=obj.risk_score,
+            risk_level=obj.risk_level,
+            created_at=obj.created_at,
+        )
+
+
+class AlertRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create_for_risk(self, risk: RiskScoreOut, channels: list[str]) -> list[AlertOut]:
+        rows = [
+            Alert(
+                user_id=risk.user_id,
+                risk_score_id=risk.id,
+                channel=channel,
+                status="new",
+                message=f"High risk detected: {risk.risk_score}",
+                created_at=datetime.now(timezone.utc),
+            )
+            for channel in channels
+        ]
+        self.session.add_all(rows)
+        await self.session.commit()
+        for row in rows:
+            await self.session.refresh(row)
+        return [self._to_schema(row) for row in rows]
+
+    async def list_by_user(self, user_id: int) -> list[AlertOut]:
+        result = await self.session.execute(select(Alert).where(Alert.user_id == user_id).order_by(Alert.id.desc()))
+        return [self._to_schema(row) for row in result.scalars().all()]
+
+    @staticmethod
+    def _to_schema(obj: Alert) -> AlertOut:
+        return AlertOut(
+            id=obj.id,
+            user_id=obj.user_id,
+            risk_score_id=obj.risk_score_id,
+            channel=obj.channel,
+            status=obj.status,
+            message=obj.message,
             created_at=obj.created_at,
         )

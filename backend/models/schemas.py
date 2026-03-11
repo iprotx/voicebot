@@ -83,3 +83,31 @@ class SimilarityResponse(BaseModel):
     risk_score: float
     risk_level: str
     is_related: bool
+
+
+class RiskScoreCreateIn(BaseModel):
+    user_id: int
+    style_similarity: float = Field(ge=0.0, le=1.0)
+    activity_overlap: float = Field(ge=0.0, le=1.0)
+    scam_pattern_score: float = Field(ge=0.0, le=1.0)
+
+
+class RiskScoreOut(BaseModel):
+    id: int
+    user_id: int
+    style_similarity: float
+    activity_overlap: float
+    scam_pattern_score: float
+    risk_score: float
+    risk_level: str
+    created_at: datetime
+
+
+class AlertOut(BaseModel):
+    id: int
+    user_id: int
+    risk_score_id: int
+    channel: str
+    status: str
+    message: str
+    created_at: datetime

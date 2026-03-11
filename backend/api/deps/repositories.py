@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.database import get_db_session
 from backend.services.security_service import JWT_ALG, JWT_SECRET
-from backend.storage.repositories import AdminRepository, IntegrationRepository, MessageRepository, UserRepository
+from backend.storage.repositories import AdminRepository, AlertRepository, IntegrationRepository, MessageRepository, RiskScoreRepository, UserRepository
 
 security = HTTPBearer()
 
@@ -42,3 +42,11 @@ def get_current_admin_email(credentials: HTTPAuthorizationCredentials = Depends(
         return str(email)
     except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="invalid token")
+
+
+async def get_risk_repo(session: AsyncSession = Depends(get_db_session)) -> AsyncGenerator[RiskScoreRepository, None]:
+    yield RiskScoreRepository(session)
+
+
+async def get_alert_repo(session: AsyncSession = Depends(get_db_session)) -> AsyncGenerator[AlertRepository, None]:
+    yield AlertRepository(session)
