@@ -64,3 +64,22 @@ class IntegrationOut(IntegrationIn):
     id: int
     is_active: bool
     created_at: datetime
+
+
+class AccountSample(BaseModel):
+    texts: list[str] = Field(default_factory=list)
+    timestamps: list[datetime] = Field(default_factory=list)
+
+
+class SimilarityRequest(BaseModel):
+    account_a: AccountSample
+    account_b: AccountSample
+    scam_pattern_score: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class SimilarityResponse(BaseModel):
+    style_similarity: float
+    activity_similarity: float
+    risk_score: float
+    risk_level: str
+    is_related: bool

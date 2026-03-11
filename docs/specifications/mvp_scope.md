@@ -8,6 +8,7 @@ Included:
 - Feature vectors
 - Embedding generation interface
 - Deterministic risk scoring
+- Analysis API for pairwise account similarity and risk
 
 Deferred:
 - Billing/pricing engine

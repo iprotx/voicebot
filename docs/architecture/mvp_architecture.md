@@ -14,6 +14,10 @@
 
 Telegram -> Userbot -> FastAPI `/messages` -> PostgreSQL -> feature extraction + embedding -> risk score.
 
+## Analysis flow
+
+API `/analysis/similarity` -> FeatureExtractor -> style/activity cosine -> RiskService score.
+
 ## Control plane flow
 
 Admin -> `/auth/login` -> JWT -> `/integrations` CRUD-lite for bot/userbot connectors.
