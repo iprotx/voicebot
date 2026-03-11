@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
+import httpx
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -85,7 +86,12 @@ async def capture_profile_name(
         await message.answer("Название пустое. Введите название профиля текстом.")
         return
 
-    profile = await voicebox.create_profile(name=name, language=settings_language)
+    try:
+        profile = await voicebox.create_profile(name=name, language=settings_language)
+    except httpx.HTTPError:
+        await message.answer("Не удалось создать профиль в Voicebox. Проверьте доступность API.")
+        return
+
     session = user_sessions.setdefault(message.from_user.id, Session())
     session.selected_profile_id = profile.id
     session.language = profile.language
